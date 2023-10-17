@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>doCreate Email Activation</title>
+        <style type="text/css">
+            .email-header {
+                text-align: center;
+                margin-bottom: 30px;
+                padding: 10px;
+                background-color: #006fee;
+                border-radius: 8px;
+            }
+
+            .email-header h1 {
+                margin: 0;
+                color: #fff;
+            }
+
+            .email-body {
+                padding: 20px 10px;
+            }
+
+            .email-body h2 {
+                margin-bottom: 10px;
+            }
+
+            .email-body p.warning {
+                color: #e3c626;
+            }
+        </style>
+    </head>
+    <body>
+        <header class="email-header">
+            <h1>doCreate</h1>
+        </header>
+
+        <main class="email-body">
+            <h2>Hi <%= user.name %>,</h2>
+            <p>
+                Thank you for registering on doCreate. To activate your account, please use the
+                following activation code
+            </p>
+            <h2><%= activationCode %></h2>
+            <p>Please enter this code into the activation form within the next 30 minutes</p>
+            <p class="warning">If you did not register on doCreate, please ignore this email</p>
+        </main>
+
+        <footer class="email-footer">
+            <p>doCreate</p>
+            <p>Copyright &copy; 2023</p>
+            <p class="email-footer__contact">
+                If you have any questions, please don't hesitate to contact us at
+                <a href="mailto:contact@stellarsolutions.com">contact@stellarsolutions.md</a>
+            </p>
+        </footer>
+    </body>
+</html>
