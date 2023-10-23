@@ -10,7 +10,7 @@ export const isAuthenticated = CatchAsyncErrors(
         const access_token = req.cookies.access_token;
 
         if (!access_token) {
-            return next(new ErrorHandler('Login first to access this resource', 401));
+            return next(new ErrorHandler('Login to access this resource', 401));
         }
 
         const decoded = (await jwt.verify(

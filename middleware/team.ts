@@ -15,6 +15,10 @@ export const isTeamAdmin = CatchAsyncErrors(
                 return next(new ErrorHandler('Team not found', 404));
             }
 
+            if (!team.members.includes(userId)) {
+                return next(new ErrorHandler("This team doesn't exist", 403));
+            }
+
             if (team.admin.toString() !== userId) {
                 return next(new ErrorHandler('You are not allowed to access this team', 403));
             }

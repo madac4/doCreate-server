@@ -10,6 +10,7 @@ import { redis } from '../utils/redis';
 import path from 'path';
 import ejs from 'ejs';
 import cloudinary from 'cloudinary';
+import TeamModel, { ITeam, InvitationModel } from '../models/Team.model';
 
 require('dotenv').config();
 
@@ -18,6 +19,7 @@ interface IRegistrationBody {
     email: string;
     password: string;
     avatar?: string;
+    teamToken?: string;
 }
 
 interface IActivationToken {
@@ -62,40 +64,75 @@ interface IResetPassword {
 export const registerUser = CatchAsyncErrors(
     async (req: Request, res: Response, next: NextFunction) => {
         try {
-            const { name, email, password } = req.body as IRegistrationBody;
+            const { name, email, password, teamToken } = req.body as IRegistrationBody;
             const emailExists = await UserModel.findOne({ email });
-
             if (emailExists) {
                 return next(new ErrorHandler('Email already exists', 400));
             }
 
-            const user: IRegistrationBody = {
-                name,
-                email,
-                password,
-            };
+            if (teamToken) {
+                const decoded = jwt.verify(teamToken, process.env.INVITATION_TOKEN as string) as {
+                    team: ITeam;
+                };
 
-            const activationToken = createActivationToken(user);
-            const activationCode = activationToken.activationCode;
-            const data = { user: { name: user.name }, activationCode };
+                const user = {
+                    name,
+                    email,
+                    password,
+                    teams: [decoded.team._id],
+                } as IRegistrationBody;
 
-            await ejs.renderFile(path.join(__dirname, '../mails/activation-mail.ejs'), data);
+                const activationToken = createActivationToken(user);
+                const activationCode = activationToken.activationCode;
+                const data = { user: { name: user.name }, activationCode };
 
-            try {
-                await sendMail({
-                    email: user.email,
-                    subject: 'Activate your account on doCreate',
-                    template: 'activation-mail.ejs',
-                    data,
-                });
+                await ejs.renderFile(path.join(__dirname, '../mails/activation-mail.ejs'), data);
 
-                res.status(200).json({
-                    success: true,
-                    message: `Please check your email: ${user.email} to activate your account`,
-                    activationToken: activationToken.token,
-                });
-            } catch (error: any) {
-                return next(new ErrorHandler(error.message, 400));
+                try {
+                    await sendMail({
+                        email: user.email,
+                        subject: 'Activate your account on doCreate',
+                        template: 'activation-mail.ejs',
+                        data,
+                    });
+
+                    res.status(200).json({
+                        success: true,
+                        message: `Please check your email: ${user.email} to activate your account`,
+                        activationToken: activationToken.token,
+                    });
+                } catch (error: any) {
+                    return next(new ErrorHandler(error.message, 400));
+                }
+            } else {
+                const user = {
+                    name,
+                    email,
+                    password,
+                } as IRegistrationBody;
+
+                const activationToken = createActivationToken(user);
+                const activationCode = activationToken.activationCode;
+                const data = { user: { name: user.name }, activationCode };
+
+                await ejs.renderFile(path.join(__dirname, '../mails/activation-mail.ejs'), data);
+
+                try {
+                    await sendMail({
+                        email: user.email,
+                        subject: 'Activate your account on doCreate',
+                        template: 'activation-mail.ejs',
+                        data,
+                    });
+
+                    res.status(200).json({
+                        success: true,
+                        message: `Please check your email: ${user.email} to activate your account`,
+                        activationToken: activationToken.token,
+                    });
+                } catch (error: any) {
+                    return next(new ErrorHandler(error.message, 400));
+                }
             }
         } catch (error: any) {
             return next(new ErrorHandler(error.message, 400));
@@ -117,18 +154,29 @@ export const activateUser = CatchAsyncErrors(
                 return next(new ErrorHandler('Invalid activation code', 400));
             }
 
-            const { email, name, password } = newUser.user;
+            const { email, name, password, teams } = newUser.user;
+
             const userExists = await UserModel.findOne({ email });
 
             if (userExists) {
                 return next(new ErrorHandler('User already exists', 400));
             }
 
-            await UserModel.create({ email, name, password });
+            const user = await UserModel.create({ email, name, password, teams });
+
+            if (teams) {
+                await TeamModel.updateOne(
+                    { _id: { $in: teams } },
+                    { $push: { members: user._id } },
+                );
+
+                await InvitationModel.updateOne({ email: email }, { status: 'accepted' });
+            }
 
             res.status(200).json({
                 success: true,
                 message: 'User activated successfully',
+                user,
             });
         } catch (error: any) {
             return next(new ErrorHandler(error.message, 400));
